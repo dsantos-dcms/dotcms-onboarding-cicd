@@ -1,14 +1,2 @@
-astate:
-- prod
-brambles:
-- prod
-crackmedia:
-- prod
-dummycustomer:
-- prod
-- dev
-rbc:
-- test
-- prod
 terra:
 - prod
