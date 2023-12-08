@@ -10,3 +10,5 @@ dummycustomer:
 rbc:
 - test
 - prod
+terra:
+- prod
