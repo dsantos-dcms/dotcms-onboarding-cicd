@@ -424,7 +424,7 @@ def main():
                         f"access_logs.s3.prefix={client_name}/{env}"
                     ],
                     'alb_waf': f"'{yaml_data.get('alb_specs', {}).get('waf', 'default_waf')}'",
-                    'alb_hosts': f"{yaml_data.get('alb_specs', {}).get('hosts', 'default_host')}",  
+                    'alb_hosts': yaml_data.get('alb_specs', {}).get('hosts', []),  
                     'replicas': yaml_data.get('alb_specs', {}).get('replicas', 1), 
                     'env': env,
                     'dotcms_version': f"'{yaml_data.get('dotcms_version', 'default_version')}'",
