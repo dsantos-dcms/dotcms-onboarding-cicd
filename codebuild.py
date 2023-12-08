@@ -87,6 +87,25 @@ def create_or_update_secret(client_name, env, region, engine):
                 secrets_client.create_secret(Name=secret_name, SecretString=updated_secret_string)
                 logging.info(f"Created secret '{secret_name}' with key '{new_key}'.")
 
+            # Add a waiting mechanism to ensure the secret is available
+            wait_time = 0
+            max_wait_time = 300  # Set a maximum wait time (e.g., 5 minutes)
+            wait_interval = 10  # Interval to wait between checks (e.g., 10 seconds)
+
+            while wait_time < max_wait_time:
+                try:
+                    secrets_client.get_secret_value(SecretId=secret_name)
+                    logging.info(f"Secret '{secret_name}' is now available.")
+                    break
+                except secrets_client.exceptions.ResourceNotFoundException:
+                    logging.info(f"Waiting for secret '{secret_name}' to become available...")
+                    time.sleep(wait_interval)
+                    wait_time += wait_interval
+
+            if wait_time >= max_wait_time:
+                logging.error(f"Timeout waiting for secret '{secret_name}' to become available.")
+                return None
+
         return secret_name
 
     except Exception as e:
