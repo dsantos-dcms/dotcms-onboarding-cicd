@@ -50,7 +50,7 @@ spec:
           - name: PROVIDER_ELASTICSEARCH_AUTH_BASIC_PASSWORD
             value: Barbarbarbar1!
           - name: PROVIDER_DB_DNSNAME
-            value: {{ rds_endpoints }}
+            value: {{ rds_endpoint }}
           - name: PROVIDER_DB_URL
             value: {{ provider_db_url }}
           - name: PROVIDER_DB_USERNAME
@@ -112,7 +112,7 @@ spec:
           - name: DOT_DEFAULT_STORAGE_TYPE
             value: FILE_SYSTEM
           - name: DOT_MAIL_SMTP_HOST
-            value: {{ smtp_server }}
+            value: {{ smpt_server }}
           - name: DOT_MAIL_SMTP_USER
             value: smtp_puser
           - name: DOT_MAIL_SMTP_PASSWORD

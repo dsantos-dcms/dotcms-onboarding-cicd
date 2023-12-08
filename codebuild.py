@@ -245,7 +245,7 @@ def create_access_point(file_system_id, client_name, env, efs_client):
             }
             response = efs_client.create_access_point(**access_point_options)
             access_point_id = response['AccessPointId']
-            logging.info(f"Access point '{access_point_name}' created for {client_name} in {env} environment.")
+            logging.info(f"Access point '{access_point_id}' created for {client_name} in {env} environment.")
             return access_point_id  # Return the newly created Access Point ID
         except ClientError as e:
             log_error(e)
@@ -389,11 +389,9 @@ def main():
             access_point_id = access_point_exists(file_system_id, env, efs_client)
             if not access_point_id:
                 access_point_id = create_access_point(file_system_id, client_name, env, efs_client)
-
             if not access_point_id:
                 logging.error(f"Failed to create or find access point for {client_name} in {env}")
                 continue
-
             setup_client_directories(client_name, environments, file_system_id, mgmt_instance, region)
             setup_rds_for_environment(client_name, env, mgmt_instance, region, rds_endpoint, master_secret)
             create_opensearch_user(os_endpoint, client_name, env)
@@ -407,15 +405,15 @@ def main():
                     'service_name': f"{client_name}-{env}-pp",
                     'pv_name': f"{client_name}-{env}-efs-pv",
                     'pv_size_storage_capacity': f"{yaml_data.get('volumes_specs', {}).get('pv_storage_capacity', '30')}",
-                    'pv_accesspoint': f"access_point_id={access_point_id}",
+                    'pv_accesspoint': f"access_point={access_point_id}",
                     'efs_id': f"{file_system_id}",
                     'pvc_name': f"{client_name}-{env}-efs-pvc",
                     'alb_service_name': f"{client_name}-{env}-svc",
                     'alb_name': f"{client_name}-{env}-alb",
                     'alb_tags': [
-                        f"'dotcms.client.name.short={client_name}'",
-                        "'VantaOwner=gregg.cobb@dotcms.com'",
-                        f"'VantaDescription=ALB for {client_name} {env}'"
+                        f"dotcms.client.name.short={client_name}",
+                        "VantaOwner=gregg.cobb@dotcms.com",
+                        f"VantaDescription=ALB for {client_name} {env}"
                     ],
                     'certificates_arns': yaml_data.get('alb_specs', {}).get('certificates', []), 
                     'alb_security_groups': REGION_SECURITY_GROUP_MAPPING.get(region, []),
@@ -440,7 +438,7 @@ def main():
                         'memory_limit': f"{yaml_data.get('stateful_set_specs', {}).get('memory_limit', 'default_memory_limit')}"
                     },
                     'open_search_endpoint': f"https://{os_endpoint}", 
-                    'rds_endpoint': f"'{rds_endpoint}'",
+                    'rds_endpoint': rds_endpoint,
                     'provider_db_url': f"jdbc:postgresql://{rds_endpoint}/{client_name}_{env}_db",
                     'provider_db_username': f"{client_name}_{env}_db_user"
                 }

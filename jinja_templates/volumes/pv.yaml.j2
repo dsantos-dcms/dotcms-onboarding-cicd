@@ -9,7 +9,7 @@ spec:
     storage: {{ pv_size_storage_capacity }} # This is an arbitrary number due to EFS not imposing any limitations but the field is mandatory for Kubernetes
   volumeMode: Filesystem
   mountOptions:
-    - {{ accesspoint }}
+    - {{ pv_accesspoint }}
   accessModes:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
