@@ -327,25 +327,38 @@ def setup_rds_for_environment(client_name, env, instance_id, region, rds_endpoin
 
 
 # Function to create a new user in OpenSearch
-def create_opensearch_user(opensearch_endpoint, client_name, env, secret, region):
+def create_opensearch_user(opensearch_endpoint, client_name, env, master_secret, region):
     engine = "os"
-    #new_username = f"{client_name}-{env}-cluster" # CONFIRM
-    master_secret_values = get_secret_values(secret)
-    os_master_user = master_secret_values['osuser']
-    os_master_password = master_secret_values['ospassword']
     
-    # Check for existing client secret | create a new secret and secret values 
-    secret_name = create_or_update_secret(client_name,env,region,engine)
-    # Retrieve secret values created for new database
-    client_secret_values = get_secret_values(secret_name)   
-    # Setup variables for db name and role according to conventions
+    master_secret_values = get_secret_values(master_secret)
+    if master_secret_values is None:
+        print(f"Failed to retrieve master secret values for {master_secret}.")
+        return
+
+    os_master_user = master_secret_values.get('osuser')
+    os_master_password = master_secret_values.get('ospassword')
+
+    if not os_master_user or not os_master_password:
+        print("Master secret does not contain required 'osuser' or 'ospassword'.")
+        return
+
+    secret_name = create_or_update_secret(client_name, env, region, engine)
+    client_secret_values = get_secret_values(secret_name)
+
+    if client_secret_values is None:
+        print(f"Failed to retrieve client secret values for {secret_name}.")
+        return
+
     os_user = f'{client_name}_{env}_os_user'
-     # Get password created to be used in the new role
-    os_user_password = client_secret_values[os_user]
+    os_user_password = client_secret_values.get(os_user)
+
+    if os_user_password is None:
+        print(f"Password not found for user {os_user} in secret {secret_name}")
+        return
     
     url = f"https://{opensearch_endpoint}/_plugins/_security/api/internalusers/{os_user}"
     payload = {
-        "password": {os_user_password},
+        "password": os_user_password,
         "backend_roles": ["some_backend_role"],  # Modify as needed
         "attributes": {"attribute1": "value1"}   # Modify as needed
     }
