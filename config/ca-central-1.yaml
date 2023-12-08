@@ -2,6 +2,8 @@ astate:
 - prod
 crackmedia:
 - prod
+dummycustomer:
+- prod
 rbc:
 - test
 - prod
