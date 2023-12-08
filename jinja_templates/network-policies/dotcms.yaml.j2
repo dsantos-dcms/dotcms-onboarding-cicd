@@ -1,0 +1,16 @@
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  namespace: {{client_name}}
+  name: allow-nodeport
+spec:
+  podSelector:
+    matchLabels:
+      app: dotcms
+  ingress:
+  - from: []
+    ports:
+    - port: 8080
+    - port: 8081
+    - port: 8082
+    - port: 5701

@@ -1,0 +1,15 @@
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  namespace: {{ client_name }}
+  name: allow-linkerd
+spec:
+  podSelector: {}
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: linkerd
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: linkerd-viz

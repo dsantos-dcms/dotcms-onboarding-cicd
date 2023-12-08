@@ -1,0 +1,14 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  namespace: {{ client_name }}
+  name: {{ service_name }}
+spec:
+  selector:
+    fullname: {{ full_name }}
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+  clusterIP: None

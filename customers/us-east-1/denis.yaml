@@ -1,0 +1,6 @@
+---
+denis:
+  dev:
+    namespace: Jose
+  prod:
+    namespace: Jose

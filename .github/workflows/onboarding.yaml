@@ -1,0 +1,111 @@
+---
+name: Onboarding Pre-checks
+on:
+  push:
+    branches:
+    - main
+    paths-ignore:
+    - 'dotcms-onboarding-cicd/config/**'
+
+env:
+  AWS_REGION: "ca-central-1"  # Change to reflect your Region
+
+permissions:
+  id-token: write  # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+
+jobs:
+  Onboarding-pre-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - id: install-aws-cli
+        uses: unfor19/install-aws-cli-action@v1
+
+      - name: Git clone the repository
+        uses: actions/checkout@v3
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          role-to-assume: arn:aws:iam::292384479065:role/Github_S3_Read
+          role-session-name: GitHub_to_AWS_via_FederatedOIDC
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x' 
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+          pip install yamllint
+
+      #!ß - name: Linting
+      #   run: yamllint .
+
+      - name: Fetching new customers/environments for ca-central-1 
+        run: |
+          # Store the output of the Python script in a local variable
+          CA_CENTRAL_1_ENCODED=$(python .github/ca-central-1.py)
+
+          # Decode the Base64 encoded content
+          CA_CENTRAL_1_DECODED=$(echo "$CA_CENTRAL_1_ENCODED" | base64 --decode)
+
+          # Set the encoded and decoded values as environment variables for subsequent steps
+          echo "CA_CENTRAL_1_ENCODED=$CA_CENTRAL_1_ENCODED" >> $GITHUB_ENV
+          echo "CA_CENTRAL_1_DECODED=$CA_CENTRAL_1_DECODED" >> $GITHUB_ENV
+
+          # Conditional check for the decoded content
+          if [ "$CA_CENTRAL_1_DECODED" = "{}" ]; then
+            echo "No new customers/environments for ca-central-1."
+          else
+            echo "New customers/environments for ca-central-1:"
+            echo "$CA_CENTRAL_1_DECODED"
+          fi
+
+      - name: Codebuild for ca-central-1
+        if: env.CA_CENTRAL_1_DECODED != '{}'
+        run: |
+          echo "Running onboarding codebuild project for ca-central-1"
+          aws codebuild start-build --project-name "dotcms" --environment-variables-override name="TO_ONBOARD",value="${{ env.CA_CENTRAL_1_ENCODED }}",type=PLAINTEXT
+        
+      - name: Set new AWS region
+        run: |
+          echo "AWS_REGION=us-east-1" >> $GITHUB_ENV
+        
+      - name: Fetching new customers/environments for us-east-1
+        run: |
+          # Store the output of the Python script in a local variable
+          US_EAST_1_ENCODED=$(python .github/us-east-1.py)
+
+          # Decode the Base64 encoded content
+          US_EAST_1_DECODED=$(echo "$US_EAST_1_ENCODED" | base64 --decode)
+
+          # Set the encoded and decoded values as environment variables for subsequent steps
+          echo "US_EAST_1_ENCODED=$US_EAST_1_ENCODED" >> $GITHUB_ENV
+          echo "US_EAST_1_DECODED=$US_EAST_1_DECODED" >> $GITHUB_ENV
+
+          # Conditional check for the decoded content
+          if [ "$US_EAST_1_DECODED" = "{}" ]; then
+            echo "No new customers/environments for us-east-1."
+          else
+            echo "New customers/environments for us-east-1:"
+            echo "$US_EAST_1_DECODED"
+          fi
+
+      - name: Codebuild for us-east-1
+        if: env.US_EAST_1_DECODED != '{}'
+        run: |
+          echo "Running onboarding codebuild project for us-east-1"
+          aws codebuild start-build --project-name "dotcms" --environment-variables-override name="TO_ONBOARD",value="${{ env.US_EAST_1_ENCODED }}",type=PLAINTEXT
+
+            
+        
+
+
+
+
+
+

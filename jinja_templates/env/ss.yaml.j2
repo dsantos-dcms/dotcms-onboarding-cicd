@@ -1,0 +1,205 @@
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: {{ client_name }}
+  name: {{ full_name }}
+spec:
+  selector:
+    matchLabels:
+      app: dotcms
+      fullname: {{ full_name }}
+  serviceName: {{ full_name }}
+  replicas: {{ replicas }}
+  template:
+    metadata:
+      annotations:
+        linkerd.io/inject: enabled
+      labels:
+        app: dotcms
+        env: {{ env }}
+        ver: {{ dotcms_version }}
+        cust: {{ client_name }}
+        fullname: {{ full_name }}
+        region: {{ region }}
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: dotcms
+        image: {{ image }}
+        resources:
+          requests:
+            cpu: {{ requests["cpu"] }}
+            memory: {{ requests["memory"] }}
+            ephemeral-storage: {{ requests["ephemeral-storage"] }}
+          limits:
+            cpu: {{ requests["cpu_limit"] }}
+            memory: {{ requests["memory_limit"] }}
+        env:
+          - name: CMS_HEAP_SIZE
+            value: 11g
+          #- name: CMS_JAVA_OPTS
+          # value: -XX:+PrintFlagsFinal -javaagent:/data/shared/glowroot/glowroot.jar -Djdk.lang.Process.launchMechanism=fork -Xms2g
+          - name: PROVIDER_ELASTICSEARCH_ENDPOINTS
+            value: {{ open_search_endpoint }}
+          - name: PROVIDER_ELASTICSEARCH_AUTH_TYPE
+            value: BASIC
+          - name: PROVIDER_ELASTICSEARCH_AUTH_BASIC_USER
+            value: dsantos
+          - name: PROVIDER_ELASTICSEARCH_AUTH_BASIC_PASSWORD
+            value: Barbarbarbar1!
+          - name: PROVIDER_DB_DNSNAME
+            value: {{ rds_endpoints }}
+          - name: PROVIDER_DB_URL
+            value: {{ provider_db_url }}
+          - name: PROVIDER_DB_USERNAME
+            value: {{ provider_db_username }}
+          - name: PROVIDER_DB_PASSWORD
+            value: password
+          - name: DOT_CONTENT_ALLOW_ZERO_LENGTH_FILES
+            value: 'true'
+          - name: DOT_DEFAULT_CONTENT_TO_DEFAULT_LANGUAGE
+            value: 'TRUE'
+          - name: DOT_CACHE_ASSETMETADATACACHE_SIZE
+            value: '50000'
+          - name: DOT_CACHE_CATEGORYPARENTSCACHE_SIZE
+            value: '1000000'
+          - name: DOT_CACHE_CONTENTLETCACHE_SIZE
+            value: '30000'
+          - name: DOT_CACHE_IDENTIFIER404CACHE_SIZE
+            value: '30000'
+          - name: DOT_CACHE_IDENTIFIERCACHE_SIZE
+            value: '1000000'
+          - name: DOT_CACHE_PERMISSIONCACHE_SIZE
+            value: '1000000'
+          - name: DOT_CACHE_RELATEDCONTENTCACHE_SIZE
+            value: '200000'
+          - name: DOT_CACHE_SHORTYIDCACHE_SIZE
+            value: '30000'
+          - name: DOT_CACHE_TAGINODESBYINODECACHE_SIZE
+            value: '400000'
+          - name: DOT_CACHE_TAGINODECACHE_SIZE
+            value: '10000'
+          - name: DOT_CACHE_VERSIONINFOCACHE_SIZE
+            value: '1000000'
+          - name: DOT_CACHE_ASSETMETADATACACHE_CHAIN
+            value: 'com.dotmarketing.business.cache.provider.caffine.CaffineCache,com.dotmarketing.business.cache.provider.h22.H22Cache'
+          - name: DOT_REINDEX_THREAD_MINIMUM_RUNTIME_IN_SEC
+            value: '120'
+          - name: DOT_DOTGENERATED_DEFAULT_PATH
+            value: shared
+          - name: DOT_DOTCMS_CLUSTER_ID
+            value: {{ cluster_id }}
+          - name: DOT_DOTCMS_CONCURRENT_QUEUECAPACITY
+            value: '1000000000'
+          - name: DOT_REINDEX_THREAD_ELASTICSEARCH_BULK_SIZE
+            value: '1'
+          - name: DOT_REINDEX_THREAD_ELASTICSEARCH_BULK_ACTIONS
+            value: '20'
+          - name: DOT_REINDEX_RECORDS_TO_FETCH
+            value: '10'
+          - name: DOT_IDENTIFIERSTRIPEDLOCKDOTCMS_CONCURRENT_LOCKS_STRIPES
+            value: '1024'
+          - name: DOT_COOKIES_HTTP_ONLY
+            value: 'false'
+          - name: DOT_COOKIES_SECURE_FLAG
+            value: never
+          - name: DOT_SYSTEM_STATUS_API_IP_ACL
+            value: '0.0.0.0/0'
+          - name: DOT_AUTOWIRE_CLUSTER_TRANSPORT
+            value: 'true'
+          - name: DOT_DEFAULT_STORAGE_TYPE
+            value: FILE_SYSTEM
+          - name: DOT_MAIL_SMTP_HOST
+            value: {{ smtp_server }}
+          - name: DOT_MAIL_SMTP_USER
+            value: smtp_puser
+          - name: DOT_MAIL_SMTP_PASSWORD
+            value: smtp_password
+          - name: DOT_MAIL_SMTP_PORT
+            value: '587'
+          - name: DOT_MAIL_SMTP_AUTH
+            value: 'true'
+          - name: DOT_MAIL_SMTP_STARTTLS_ENABLE
+            value: 'true'
+          - name: DOT_MAIL_SMTP_SSL_PROTOCOLS
+            value: 'TLSv1.2'
+          - name: PROVIDER_DB_MAXCONNS
+            value: '300'
+          - name: DOT_REMOTE_CALL_SUBNET_BLACKLIST
+            value: "169.254.169.254/32,127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+          - name: DOT_REMOTE_CALL_ALLOW_REDIRECTS
+            value: 'true'
+          - name: DOT_URI_NORMALIZATION_FORBIDDEN_REGEX
+            value: '\/\/html\/.*'
+        ports:
+          - containerPort: 8080
+            name: api
+          - containerPort: 8081
+            name: web-insecure
+          - containerPort: 8082
+            name: web-secure
+          - containerPort: 5701
+            name: hazelcast
+        volumeMounts:
+          - name: dotcms-shared
+            mountPath: /data/shared
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - '/bin/bash'
+              - '-c'
+              - >
+                if [ ! -d /data/shared/assets/.backup ]; then
+                mkdir /data/shared/assets/.backup;
+                fi;
+                ln -s /data/shared/assets/.backup /data/local/dotsecure/backup;
+        startupProbe:
+          exec:
+            command:
+              - curl
+              - -s
+              - http://localhost:8082/api/v1/appconfiguration
+          initialDelaySeconds: 600
+          periodSeconds: 5
+          successThreshold: 1
+          failureThreshold: 65
+          timeoutSeconds: 1
+        livenessProbe:
+          exec:
+            command:
+              - curl
+              - -s
+              - http://localhost:8082/api/v1/appconfiguration
+          initialDelaySeconds: 1
+          periodSeconds: 15
+          successThreshold: 1
+          failureThreshold: 8
+          timeoutSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+              - curl
+              - -s
+              - http://localhost:8082/api/v1/appconfiguration
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 1
+          timeoutSeconds: 5
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: fullname
+                    operator: In
+                    values:
+                      - {{ full_name }}
+              topologyKey: "kubernetes.io/hostname"
+      volumes:
+      - name: dotcms-shared
+        persistentVolumeClaim:
+          claimName: {{ pvc_name }}

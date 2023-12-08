@@ -1,0 +1,33 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Cloning the private repository...
+      - git clone https://dsantos-dcms:${GITHUB_TOKEN}@github.com/dsantos-dcms/infrastructure-as-code.git
+      - ls -la
+
+  install:
+    commands:
+      - pip install requests
+      - pip install jinja2
+
+  build:
+    commands:
+      # Main Script
+      - python3 codebuild.py
+      - cd infrastructure-as-code
+      - branch_name="Automated-Onboarding-${CODEBUILD_BUILD_NUMBER}"
+      - git checkout -b "$branch_name"
+      - git add .
+      - git commit -m "$branch_name"
+      - git push origin "$branch_name"
+  
+  post_build:
+    commands:
+      - echo "Triggering another CodeBuild project with additional environment variables"
+      - >
+          aws codebuild start-build 
+          --project-name "update_config"
+          --environment-variables-override 
+          name="ONBOARDED",value="${TO_ONBOARD}",type="PLAINTEXT"

@@ -1,0 +1,12 @@
+---
+extends: default
+
+rules:
+  line-length:
+    max: 140  # Set your desired maximum line length
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+
+# Specify the directory to apply the linting
+include:
+  - './customers/**/*'

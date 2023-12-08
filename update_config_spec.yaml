@@ -1,0 +1,20 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo "Setting up SSH key from Secrets Manager"
+      - mkdir -p ~/.ssh
+      - aws secretsmanager get-secret-value --secret-id "arn:aws:secretsmanager:ca-central-1:292384479065:secret:ssh_key-xpP4lY" --query SecretString --output text > ~/.ssh/id_rsa
+      - chmod 600 ~/.ssh/id_rsa
+      - ssh-keyscan github.com >> ~/.ssh/known_hosts
+  build:
+    commands:
+      - git config --global user.email "codebuild@automated.com"
+      - git config --global user.name "automated"
+      - git clone git@github.com:dsantos-dcms/dotcms-onboarding-cicd.git
+      - cd dotcms-onboarding-cicd
+      - python3 update_config.py
+      - git add .
+      - git commit -m "updating onboarding-config-post-${CODEBUILD_BUILD_NUMBER}"
+      - git push origin main
