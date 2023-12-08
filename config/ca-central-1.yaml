@@ -1,5 +1,7 @@
 crackmedia:
 - prod
+new_customer:
+- prod
 rbc:
 - test
 - prod
