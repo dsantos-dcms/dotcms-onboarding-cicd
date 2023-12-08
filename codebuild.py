@@ -345,7 +345,7 @@ def create_opensearch_user(opensearch_endpoint, client_name, env, secret, region
     
     url = f"https://{opensearch_endpoint}/_plugins/_security/api/internalusers/{os_user}"
     payload = {
-        "password": {{os_user_password}},
+        "password": {os_user_password},
         "backend_roles": ["some_backend_role"],  # Modify as needed
         "attributes": {"attribute1": "value1"}   # Modify as needed
     }
