@@ -442,6 +442,7 @@ def main():
             if not access_point_id:
                 logging.error(f"Failed to create or find access point for {client_name} in {env}")
                 continue
+            time.sleep(10)
             setup_client_directories(client_name, environments, file_system_id, mgmt_instance, region)
             setup_rds_for_environment(client_name, env, mgmt_instance, region, rds_endpoint, master_secret)
             create_opensearch_user(os_endpoint, client_name, env, master_secret, region)
