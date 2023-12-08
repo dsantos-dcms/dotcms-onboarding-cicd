@@ -53,10 +53,10 @@ def get_secret_values(secret_name):
         return None
     
 # Check for existing secret | create a new secret and secret values
-def create_or_update_secret(client_name, env, region):
+def create_or_update_secret(client_name, env, region, engine):
     secrets_client = boto3.client('secretsmanager', region_name=region)
     secret_name = f"{client_name}_secrets"
-    new_key = f"{client_name}_{env}_db_user"
+    new_key = f"{client_name}_{env}_{engine}_user"
 
     try:
         # Attempt to retrieve the secret
@@ -274,6 +274,7 @@ def setup_client_directories(client_name, environments, efs_id, instance_id, reg
 # Create RDS db, role and set permissions
 def setup_rds_for_environment(client_name, env, instance_id, region, rds_endpoint, master_secret):
     
+    engine = "db"
     # Retrieve master admin RDS secret from Secret Manager
     master_secret_values = get_secret_values(master_secret)
     # Get RDS master username and password to handle initial connection
@@ -281,7 +282,7 @@ def setup_rds_for_environment(client_name, env, instance_id, region, rds_endpoin
     db_master_password = master_secret_values['password']
     
     # Check for existing client secret | create a new secret and secret values 
-    secret_name = create_or_update_secret(client_name,env,region)
+    secret_name = create_or_update_secret(client_name,env,region, engine)
     # Retrieve secret values created for new database
     client_secret_values = get_secret_values(secret_name)
    
@@ -307,11 +308,25 @@ def setup_rds_for_environment(client_name, env, instance_id, region, rds_endpoin
 
 
 # Function to create a new user in OpenSearch
-def create_opensearch_user(opensearch_endpoint, client_name, env):
-    new_username = f"{client_name}-{env}-cluster" # CONFIRM
-    url = f"https://{opensearch_endpoint}/_plugins/_security/api/internalusers/{new_username}"
+def create_opensearch_user(opensearch_endpoint, client_name, env, secret, region):
+    engine = "os"
+    #new_username = f"{client_name}-{env}-cluster" # CONFIRM
+    master_secret_values = get_secret_values(secret)
+    os_master_user = master_secret_values['osuser']
+    os_master_password = master_secret_values['ospassword']
+    
+    # Check for existing client secret | create a new secret and secret values 
+    secret_name = create_or_update_secret(client_name,env,region,engine)
+    # Retrieve secret values created for new database
+    client_secret_values = get_secret_values(secret_name)   
+    # Setup variables for db name and role according to conventions
+    os_user = f'{client_name}_{env}_os_user'
+     # Get password created to be used in the new role
+    os_user_password = client_secret_values[os_user]
+    
+    url = f"https://{opensearch_endpoint}/_plugins/_security/api/internalusers/{os_user}"
     payload = {
-        "password": "Barbarbarbar1!",
+        "password": {{os_user_password}},
         "backend_roles": ["some_backend_role"],  # Modify as needed
         "attributes": {"attribute1": "value1"}   # Modify as needed
     }
@@ -321,9 +336,9 @@ def create_opensearch_user(opensearch_endpoint, client_name, env):
     }
 
     try:
-        response = requests.put(url, auth=HTTPBasicAuth("dsantos", "Barbarbarbar1!"), headers=headers, data=json.dumps(payload), verify=False)
+        response = requests.put(url, auth=HTTPBasicAuth({os_master_user}, {os_master_password}), headers=headers, data=json.dumps(payload), verify=False)
         if response.status_code == 201:
-            print(f"User '{new_username}' created successfully in OpenSearch.")
+            print(f"User '{os_user}' created successfully in OpenSearch.")
         else:
             print(f"Failed to create user. Status code: {response.status_code}, Response: {response.text}")
     except Exception as e:
@@ -394,7 +409,7 @@ def main():
                 continue
             setup_client_directories(client_name, environments, file_system_id, mgmt_instance, region)
             setup_rds_for_environment(client_name, env, mgmt_instance, region, rds_endpoint, master_secret)
-            create_opensearch_user(os_endpoint, client_name, env)
+            create_opensearch_user(os_endpoint, client_name, env, master_secret, region)
             customer_path, namespace_path = create_customer_directory_structure(base_infra_path, client_name, environments)
             yaml_data = get_yaml_data(client_name, env, region)
             data = {
@@ -438,6 +453,7 @@ def main():
                         'memory_limit': f"{yaml_data.get('stateful_set_specs', {}).get('memory_limit', 'default_memory_limit')}"
                     },
                     'open_search_endpoint': f"https://{os_endpoint}", 
+                    'open_search_user': f"{client_name}_{env}_os_user",
                     'rds_endpoint': rds_endpoint,
                     'provider_db_url': f"jdbc:postgresql://{rds_endpoint}/{client_name}_{env}_db",
                     'provider_db_username': f"{client_name}_{env}_db_user"

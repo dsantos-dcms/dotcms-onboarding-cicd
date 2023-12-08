@@ -46,9 +46,9 @@ spec:
           - name: PROVIDER_ELASTICSEARCH_AUTH_TYPE
             value: BASIC
           - name: PROVIDER_ELASTICSEARCH_AUTH_BASIC_USER
-            value: dsantos
+            value: {{ open_search_user }}
           - name: PROVIDER_ELASTICSEARCH_AUTH_BASIC_PASSWORD
-            value: Barbarbarbar1!
+            value: password
           - name: PROVIDER_DB_DNSNAME
             value: {{ rds_endpoint }}
           - name: PROVIDER_DB_URL
