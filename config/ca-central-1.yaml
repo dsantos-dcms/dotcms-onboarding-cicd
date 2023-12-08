@@ -1,9 +1,5 @@
 crackmedia:
 - prod
-customerb:
-- prod
-new_customer:
-- prod
 rbc:
 - test
 - prod

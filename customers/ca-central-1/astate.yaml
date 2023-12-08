@@ -1,8 +1,8 @@
 ---
-customerb:
+astate:
   prod:
     dotcms_version: '21.06'
-    namespace: 'customerb'
+    namespace: 'astate'
     alb_specs:
       replicas: 1
       certificates: ['arn:aws:acm:ca-central-1:292384479065:certificate/06810991-6981-4f43-96eb-50fe9c15e1ba']
