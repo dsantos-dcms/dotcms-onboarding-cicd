@@ -424,12 +424,12 @@ def main():
                         f"access_logs.s3.prefix={client_name}/{env}"
                     ],
                     'alb_waf': f"'{yaml_data.get('alb_specs', {}).get('waf', 'default_waf')}'",
-                    'alb_host': f"{yaml_data.get('alb_specs', {}).get('hosts', 'default_host')}",  
+                    'alb_hosts': f"{yaml_data.get('alb_specs', {}).get('hosts', 'default_host')}",  
                     'replicas': yaml_data.get('alb_specs', {}).get('replicas', 1), 
                     'env': env,
                     'dotcms_version': f"'{yaml_data.get('dotcms_version', 'default_version')}'",
                     'region': region,
-                    'image': f"'{yaml_data.get('stateful_set_specs', {}).get('image', 'default_image')}'",
+                    'image': f"{yaml_data.get('stateful_set_specs', {}).get('image', 'default_image')}",
                     'requests': { 
                         'cpu': f"'{yaml_data.get('stateful_set_specs', {}).get('cpu', 'default_cpu')}'",
                         'memory': f"{yaml_data.get('stateful_set_specs', {}).get('memory', 'default_memory')}",

@@ -1,8 +1,8 @@
 ---
-customera:
-  uat:
+rbc:
+  prod:
     dotcms_version: '21.06'
-    namespace: 'customera'
+    namespace: 'rbc'
     alb_specs:
       replicas: 1
       certificates: ['arn:aws:acm:ca-central-1:292384479065:certificate/06810991-6981-4f43-96eb-50fe9c15e1ba']
@@ -17,4 +17,3 @@ customera:
       memory: 5Gi
       memory_limit: 5Gi
       ephemeral-storage: '15'
-
