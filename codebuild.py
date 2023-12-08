@@ -303,6 +303,7 @@ def setup_rds_for_environment(client_name, env, instance_id, region, rds_endpoin
     # Check for existing client secret | create a new secret and secret values 
     secret_name = create_or_update_secret(client_name,env,region, engine)
     # Retrieve secret values created for new database
+    time.sleep(10)
     client_secret_values = get_secret_values(secret_name)
    
     # Setup variables for db name and role according to conventions
@@ -343,6 +344,8 @@ def create_opensearch_user(opensearch_endpoint, client_name, env, master_secret,
         return
 
     secret_name = create_or_update_secret(client_name, env, region, engine)
+    time.sleep(10)
+    
     client_secret_values = get_secret_values(secret_name)
 
     if client_secret_values is None:

@@ -1,0 +1,19 @@
+---
+terra:
+  prod:
+    dotcms_version: '21.06'
+    namespace: 'terra'
+    alb_specs:
+      replicas: 1
+      certificates: ['arn:aws:acm:ca-central-1:292384479065:certificate/06810991-6981-4f43-96eb-50fe9c15e1ba']
+      waf: ['none']
+      hosts: ['cicd-dotcms.denis-santos.com']
+    volumes_specs:
+      pv_storage_capacity: 30
+    stateful_set_specs:
+      image: 'dotcms/dotcms:21.06.14_lts-no-saml'
+      cpu: '.5'
+      cpu_limit: '2'
+      memory: 5Gi
+      memory_limit: 5Gi
+      ephemeral-storage: '15'
