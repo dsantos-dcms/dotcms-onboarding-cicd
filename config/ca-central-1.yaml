@@ -2,5 +2,9 @@ caliber:
 - prod
 dot:
 - prod
+- dev
+- uat
+google:
+- uat
 terra:
 - prod
