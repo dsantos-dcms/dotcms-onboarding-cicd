@@ -4,6 +4,7 @@ crackmedia:
 - prod
 dummycustomer:
 - prod
+- dev
 rbc:
 - test
 - prod
