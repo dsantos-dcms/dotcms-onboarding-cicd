@@ -43,7 +43,7 @@ metadata:
     #alb.ingress.kubernetes.io/wafv2-acl-arn: {{ waf_arn }} # MODIFY TO ONLY ADD THIS IF WAF IS SET
 spec:
   rules:
-    - host: {{ alb_host }}
+    - host: {{ alb_hosts | join(',') }}
     - http:
         paths:
           - path: /

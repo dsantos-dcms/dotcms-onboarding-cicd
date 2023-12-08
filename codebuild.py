@@ -221,9 +221,10 @@ def access_point_exists(file_system_id, access_point_name, efs_client):
     
 # Create Access points
 def create_access_point(file_system_id, client_name, env, efs_client):
-    access_point_name = env
+    access_point_name = f"{client_name}-{env}"
     if access_point_exists(file_system_id, access_point_name, efs_client):
         logging.info(f"Access point '{access_point_name}' already exists for {client_name} in {env} environment.")
+        return None  # Return None if Access Point already exists
     else:
         try:
             access_point_options = {
@@ -242,10 +243,13 @@ def create_access_point(file_system_id, client_name, env, efs_client):
                     {'Key': 'Client', 'Value': client_name}
                 ]
             }
-            efs_client.create_access_point(**access_point_options)
+            response = efs_client.create_access_point(**access_point_options)
+            access_point_id = response['AccessPointId']
             logging.info(f"Access point '{access_point_name}' created for {client_name} in {env} environment.")
+            return access_point_id  # Return the newly created Access Point ID
         except ClientError as e:
             log_error(e)
+            return None
         
 # SSM Commands for mounting EFS, creating dirs and configuring permissions
 def setup_client_directories(client_name, environments, efs_id, instance_id, region):
@@ -370,7 +374,7 @@ def main():
     for client_name, environments in to_onboard.items():
         file_system_id = efs_exists(client_name, efs_client)
         if file_system_id:
-            logging.info(f"EFS already exists for {client_name}, checking for existing Access points..")
+            logging.info(f"EFS already exists for {client_name}, checking for existing Access points...")
         else:
             logging.info(f"EFS {client_name}-k8s does not exist. Creating EFS...")
             file_system_id = create_efs(client_name, region, efs_client)
@@ -381,60 +385,65 @@ def main():
                 continue
 
         for env in environments:
-            if access_point_exists(file_system_id, env, efs_client):
-                logging.info(f"Access point '{env}' already exists for {client_name}. Skipping setup for this environment.")
+            # Retrieve or create the access point and get its ID
+            access_point_id = access_point_exists(file_system_id, env, efs_client)
+            if not access_point_id:
+                access_point_id = create_access_point(file_system_id, client_name, env, efs_client)
+
+            if not access_point_id:
+                logging.error(f"Failed to create or find access point for {client_name} in {env}")
                 continue
-            create_access_point(file_system_id, client_name, env, efs_client)
+
             setup_client_directories(client_name, environments, file_system_id, mgmt_instance, region)
             setup_rds_for_environment(client_name, env, mgmt_instance, region, rds_endpoint, master_secret)
-            create_opensearch_user(os_endpoint,client_name, env)  
+            create_opensearch_user(os_endpoint, client_name, env)
             customer_path, namespace_path = create_customer_directory_structure(base_infra_path, client_name, environments)
             yaml_data = get_yaml_data(client_name, env, region)
             data = {
-                'smpt_server': f'email-smtp.{region}.amazonaws.com',
-                'cluster_id': f'{client_name}-{env}',
-                'client_name': client_name,
-                'full_name': f"dotcms-{client_name}-{env}",
-                'service_name': f"{client_name}-{env}-pp",
-                'pv_name': f"{client_name}-{env}-efs-pv",
-                'pv_size_storage_capacity': yaml_data.get('volumes_specs', {}).get('pv_storage_capacity', '30'),  # Default value added
-                'pv_accesspoint': '',  # Set this after access point creation
-                'efs_id': "efs_id",
-                'pvc_name': f'{client_name}-{env}-efs-pvc',
-                'alb_service_name': f'{client_name}-{env}-svc',
-                'alb_name': f'{client_name}-{env}-alb',
-                'alb_tags': [
-                    f'dotcms.client.name.short={client_name}',
-                    'VantaOwner=gregg.cobb@dotcms.com',
-                    f'VantaDescription=ALB for {client_name} {env}'
-                ],
-                'certificates_arns': yaml_data.get('alb_specs', {}).get('certificates', []),  # Default value added
-                'alb_security_groups': REGION_SECURITY_GROUP_MAPPING.get(region, []),
-                'alb_attributes': [
-                    'idle_timeout.timeout_seconds=60', 
-                    'access_logs.s3.enabled=true',
-                    f'access_logs.s3.bucket=dotcms-{region}-alb-access-logs',
-                    f'access_logs.s3.prefix={client_name}/{env}'
-                ],
-                'alb_waf': yaml_data.get('alb_specs', {}).get('waf', 'default_waf'),  # Default value added
-                'alb_host': yaml_data.get('alb_specs', {}).get('hosts', 'default_host'),  # Default value added
-                'replicas': yaml_data.get('alb_specs', {}).get('replicas', 1),  # Default value added
-                'env': env,
-                'dotcms_version': yaml_data.get('dotcms_version', 'default_version'),  # Default value added
-                'region': region,
-                'image': yaml_data.get('stateful_set_specs', {}).get('image', 'default_image'),  # Default value added
-                'requests': { 
-                    'cpu': yaml_data.get('stateful_set_specs', {}).get('cpu', 'default_cpu'),  # Default value added
-                    'memory': yaml_data.get('stateful_set_specs', {}).get('memory', 'default_memory'),  # Default value added
-                    'ephemeral-storage': yaml_data.get('stateful_set_specs', {}).get('ephemeral-storage', 'default_ephemeral_storage'),  # Default value added
-                    'cpu_limit': yaml_data.get('stateful_set_specs', {}).get('cpu_limit', 'default_cpu_limit'),  # Default value added
-                    'memory_limit': yaml_data.get('stateful_set_specs', {}).get('memory_limit', 'default_memory_limit')  # Default value added
-                },
-                'open_search_endpoint': os_endpoint, 
-                'rds_endpoint': rds_endpoint,
-                'provider_db_url': f"jdbc:postgresql://{rds_endpoint}/{client_name}_{env}_db",
-                'provider_db_username': f"jdbc:postgresql://{rds_endpoint}/{client_name}_{env}_db_user",
-            }
+                    'smpt_server': f"email-smtp.{region}.amazonaws.com",
+                    'cluster_id': f"{client_name}-{env}",
+                    'client_name': client_name,
+                    'full_name': f"dotcms-{client_name}-{env}",
+                    'service_name': f"{client_name}-{env}-pp",
+                    'pv_name': f"{client_name}-{env}-efs-pv",
+                    'pv_size_storage_capacity': f"{yaml_data.get('volumes_specs', {}).get('pv_storage_capacity', '30')}",
+                    'pv_accesspoint': f"access_point_id={access_point_id}",
+                    'efs_id': f"{file_system_id}",
+                    'pvc_name': f"{client_name}-{env}-efs-pvc",
+                    'alb_service_name': f"{client_name}-{env}-svc",
+                    'alb_name': f"{client_name}-{env}-alb",
+                    'alb_tags': [
+                        f"'dotcms.client.name.short={client_name}'",
+                        "'VantaOwner=gregg.cobb@dotcms.com'",
+                        f"'VantaDescription=ALB for {client_name} {env}'"
+                    ],
+                    'certificates_arns': yaml_data.get('alb_specs', {}).get('certificates', []), 
+                    'alb_security_groups': REGION_SECURITY_GROUP_MAPPING.get(region, []),
+                    'alb_attributes': [
+                        "idle_timeout.timeout_seconds=60",
+                        "access_logs.s3.enabled=true",
+                        f"access_logs.s3.bucket=dotcms-{region}-alb-access-logs",
+                        f"access_logs.s3.prefix={client_name}/{env}"
+                    ],
+                    'alb_waf': f"'{yaml_data.get('alb_specs', {}).get('waf', 'default_waf')}'",
+                    'alb_host': f"{yaml_data.get('alb_specs', {}).get('hosts', 'default_host')}",  
+                    'replicas': yaml_data.get('alb_specs', {}).get('replicas', 1), 
+                    'env': env,
+                    'dotcms_version': f"'{yaml_data.get('dotcms_version', 'default_version')}'",
+                    'region': region,
+                    'image': f"'{yaml_data.get('stateful_set_specs', {}).get('image', 'default_image')}'",
+                    'requests': { 
+                        'cpu': f"'{yaml_data.get('stateful_set_specs', {}).get('cpu', 'default_cpu')}'",
+                        'memory': f"{yaml_data.get('stateful_set_specs', {}).get('memory', 'default_memory')}",
+                        'ephemeral-storage': f"'{yaml_data.get('stateful_set_specs', {}).get('ephemeral-storage', 'default_ephemeral_storage')}'",
+                        'cpu_limit': f"'{yaml_data.get('stateful_set_specs', {}).get('cpu_limit', 'default_cpu_limit')}'",
+                        'memory_limit': f"{yaml_data.get('stateful_set_specs', {}).get('memory_limit', 'default_memory_limit')}"
+                    },
+                    'open_search_endpoint': f"https://{os_endpoint}", 
+                    'rds_endpoint': f"'{rds_endpoint}'",
+                    'provider_db_url': f"jdbc:postgresql://{rds_endpoint}/{client_name}_{env}_db",
+                    'provider_db_username': f"{client_name}_{env}_db_user"
+                }
             
             jinja_env = Environment(loader=FileSystemLoader('jinja_templates'), trim_blocks=True, lstrip_blocks=True)
             template_paths = {
